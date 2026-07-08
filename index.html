@@ -1,23 +1,554 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Generator</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR // NEXUS — Generate &amp; Scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js"></script>
+<style>
+  :root{
+    --bg:#070a12;
+    --bg-2:#0c1120;
+    --surface:rgba(255,255,255,0.04);
+    --surface-strong:rgba(255,255,255,0.07);
+    --border:rgba(0,229,255,0.18);
+    --cyan:#00e5ff;
+    --violet:#b026ff;
+    --pink:#ff2e63;
+    --text:#e6f1ff;
+    --text-dim:#7d8bab;
+    --success:#39ff9d;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(176,38,255,0.14), transparent 40%),
+      radial-gradient(circle at 85% 85%, rgba(0,229,255,0.12), transparent 45%),
+      var(--bg);
+    font-family:'Rajdhani', sans-serif;
+    color:var(--text);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px 16px;
+    overflow-x:hidden;
+    position:relative;
+  }
+  /* hex grid backdrop */
+  body::before{
+    content:"";
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.05) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image:radial-gradient(circle at 50% 30%, black, transparent 75%);
+    pointer-events:none;
+    z-index:0;
+  }
+  .app{
+    position:relative;
+    z-index:1;
+    width:100%;
+    max-width:460px;
+  }
+  .eyebrow{
+    font-family:'Orbitron', sans-serif;
+    font-size:11px;
+    letter-spacing:4px;
+    color:var(--cyan);
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .eyebrow::before{
+    content:"";
+    width:8px;height:8px;
+    background:var(--cyan);
+    box-shadow:0 0 10px var(--cyan), 0 0 20px var(--cyan);
+    display:inline-block;
+    animation:blink 1.6s infinite;
+  }
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
+  h1{
+    font-family:'Orbitron', sans-serif;
+    font-weight:900;
+    font-size:28px;
+    letter-spacing:1px;
+    margin:0 0 4px;
+    background:linear-gradient(90deg, var(--cyan), var(--violet));
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .sub{
+    color:var(--text-dim);
+    font-size:14px;
+    margin-bottom:22px;
+    letter-spacing:.5px;
+  }
+  .panel{
+    position:relative;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:22px;
+    backdrop-filter:blur(18px);
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .panel::before, .panel::after{
+    content:"";
+    position:absolute;
+    width:18px;height:18px;
+    border-color:var(--cyan);
+    border-style:solid;
+    opacity:.8;
+  }
+  .panel::before{top:-1px;left:-1px;border-width:2px 0 0 2px;border-radius:6px 0 0 0;}
+  .panel::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0;border-radius:0 0 6px 0;}
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    background:rgba(0,0,0,0.3);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:4px;
+    margin-bottom:20px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:10px 8px;
+    font-family:'Orbitron', sans-serif;
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    background:transparent;
+    border:none;
+    border-radius:9px;
+    cursor:pointer;
+    transition:all .25s ease;
+  }
+  .tab.active{
+    color:#02131a;
+    background:linear-gradient(90deg, var(--cyan), #66f0ff);
+    box-shadow:0 0 18px rgba(0,229,255,0.5);
+  }
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  label{
+    display:block;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin-bottom:8px;
+  }
+  textarea, select, input[type=text]{
+    width:100%;
+    background:rgba(0,0,0,0.35);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-family:'Rajdhani', sans-serif;
+    font-size:15px;
+    padding:12px 14px;
+    resize:vertical;
+    outline:none;
+    transition:border-color .2s, box-shadow .2s;
+  }
+  textarea:focus, select:focus, input[type=text]:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 3px rgba(0,229,255,0.15);
+  }
+  .row{display:flex; gap:12px; margin-top:14px;}
+  .row > div{flex:1;}
+
+  .btn{
+    font-family:'Orbitron', sans-serif;
+    font-size:12px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    padding:13px 18px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--surface-strong);
+    color:var(--text);
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .2s ease, background .2s ease;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    width:100%;
+  }
+  .btn:hover{transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,229,255,0.15);}
+  .btn:active{transform:translateY(0);}
+  .btn-primary{
+    background:linear-gradient(90deg, var(--cyan), var(--violet));
+    color:#040711;
+    border:none;
+    box-shadow:0 0 24px rgba(176,38,255,0.35);
+  }
+  .btn-primary:hover{box-shadow:0 0 34px rgba(176,38,255,0.55);}
+  .btn-row{display:flex; gap:10px; margin-top:16px;}
+
+  .qr-stage{
+    margin-top:22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    padding:26px;
+    border:1px dashed var(--border);
+    border-radius:14px;
+    background:radial-gradient(circle at center, rgba(0,229,255,0.05), transparent 70%);
+    min-height:250px;
+  }
+  #qrcode{ line-height:0; filter:drop-shadow(0 0 18px rgba(0,229,255,0.25)); }
+  #qrcode img, #qrcode canvas{ border-radius:8px; }
+  .scanline{
+    position:absolute; left:6%; right:6%; height:2px;
+    background:linear-gradient(90deg, transparent, var(--cyan), transparent);
+    box-shadow:0 0 12px var(--cyan);
+    animation:sweep 2.4s ease-in-out infinite;
+    opacity:0;
+  }
+  .qr-stage.filled .scanline{opacity:1;}
+  @keyframes sweep{
+    0%{top:8%;} 50%{top:88%;} 100%{top:8%;}
+  }
+  .placeholder{
+    color:var(--text-dim);
+    font-size:13px;
+    text-align:center;
+    letter-spacing:1px;
+  }
+
+  /* scan view */
+  .scan-wrap{
+    position:relative;
+    border-radius:14px;
+    overflow:hidden;
+    background:#000;
+    aspect-ratio:1/1;
+    border:1px solid var(--border);
+  }
+  video{width:100%; height:100%; object-fit:cover; display:block;}
+  .hud{
+    position:absolute; inset:14%;
+    pointer-events:none;
+  }
+  .hud span{
+    position:absolute; width:26px; height:26px;
+    border-color:var(--cyan);
+    border-style:solid;
+    filter:drop-shadow(0 0 6px var(--cyan));
+  }
+  .hud .tl{top:0;left:0;border-width:3px 0 0 3px;}
+  .hud .tr{top:0;right:0;border-width:3px 3px 0 0;}
+  .hud .bl{bottom:0;left:0;border-width:0 0 3px 3px;}
+  .hud .br{bottom:0;right:0;border-width:0 3px 3px 0;}
+  .hud .laser{
+    position:absolute; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--pink), transparent);
+    box-shadow:0 0 14px var(--pink);
+    animation:sweep 2s ease-in-out infinite;
+  }
+  .scan-result{
+    margin-top:16px;
+    padding:14px;
+    border-radius:10px;
+    background:rgba(57,255,157,0.08);
+    border:1px solid rgba(57,255,157,0.4);
+    font-size:14px;
+    word-break:break-all;
+    display:none;
+  }
+  .scan-result.show{display:block;}
+  .scan-status{
+    margin-top:10px;
+    font-size:12px;
+    color:var(--text-dim);
+    letter-spacing:1px;
+    text-align:center;
+  }
+  .divider{
+    text-align:center; color:var(--text-dim); font-size:12px;
+    letter-spacing:2px; margin:14px 0 6px;
+  }
+  input[type=file]{display:none;}
+  .file-btn{
+    font-size:12px;
+  }
+  a.download-link{text-decoration:none;}
+  footer{
+    text-align:center;
+    margin-top:18px;
+    font-size:11px;
+    color:var(--text-dim);
+    letter-spacing:1px;
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>QR Code Generator</h1>
-        <input type="text" id="qrInput" placeholder="Enter text or URL" />
-        <button id="generateBtn">Generate QR Code</button>
-        <div id="qrCodeContainer">
-            <img id="qrCode" src="" alt="QR Code" style="display:none;"/>
-        </div>
-        <a id="downloadBtn" href="#" style="display:none;">Download QR Code</a>
+
+<div class="app">
+  <div class="eyebrow">System Online · Subodh</div>
+  <h1>QR // NEXUS</h1>
+  <div class="sub">Generate and decode QR codes in one interface.</div>
+
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" data-tab="gen">Generate</button>
+      <button class="tab" data-tab="scan">Scan</button>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.qrcode/1.0/jquery.qrcode.min.js"></script>
-    <script src="script.js"></script>
+
+    <!-- GENERATE VIEW -->
+    <div class="view active" id="view-gen">
+      <label for="text-input">Content</label>
+      <textarea id="text-input" rows="3" placeholder="Enter a URL, message, Wi-Fi info, or any text..."></textarea>
+
+      <div class="row">
+        <div>
+          <label for="size-select">Size</label>
+          <select id="size-select">
+            <option value="180">180 px</option>
+            <option value="240" selected>240 px</option>
+            <option value="320">320 px</option>
+            <option value="400">400 px</option>
+          </select>
+        </div>
+        <div>
+          <label for="color-select">Style</label>
+          <select id="color-select">
+            <option value="dark">Classic (Black)</option>
+            <option value="cyan">Neon Cyan</option>
+            <option value="violet">Neon Violet</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="margin-top:16px;" id="generate-btn">⚡ Generate QR Code</button>
+
+      <div class="qr-stage" id="qr-stage">
+        <div class="scanline"></div>
+        <div class="placeholder" id="qr-placeholder">Your QR code will materialize here</div>
+        <div id="qrcode"></div>
+      </div>
+
+      <div class="btn-row" id="download-row" style="display:none;">
+        <button class="btn" id="download-btn">⬇ Download PNG</button>
+      </div>
+    </div>
+
+    <!-- SCAN VIEW -->
+    <div class="view" id="view-scan">
+      <div class="scan-wrap" id="scan-wrap">
+        <video id="video" playsinline muted></video>
+        <div class="hud">
+          <span class="tl"></span><span class="tr"></span><span class="bl"></span><span class="br"></span>
+          <div class="laser"></div>
+        </div>
+      </div>
+      <div class="scan-status" id="scan-status">Camera idle — tap start to activate</div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="camera-toggle">▶ Start Camera</button>
+      </div>
+
+      <div class="divider">— or —</div>
+      <div class="btn-row">
+        <button class="btn file-btn" id="upload-trigger">📁 Upload Image to Scan</button>
+        <input type="file" id="file-input" accept="image/*">
+      </div>
+
+      <div class="scan-result" id="scan-result">
+        <strong style="color:var(--success); font-family:'Orbitron',sans-serif; font-size:11px; letter-spacing:2px;">DECODED</strong>
+        <div id="scan-result-text" style="margin-top:6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>QR // NEXUS · built by Subodh · runs entirely in your browser</footer>
+</div>
+
+<canvas id="hidden-canvas" style="display:none;"></canvas>
+
+<script>
+  // ---------- Tab switching ----------
+  const tabs = document.querySelectorAll('.tab');
+  const views = { gen: document.getElementById('view-gen'), scan: document.getElementById('view-scan') };
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      Object.values(views).forEach(v => v.classList.remove('active'));
+      views[tab.dataset.tab].classList.add('active');
+      if (tab.dataset.tab !== 'scan') stopCamera();
+    });
+  });
+
+  // ---------- QR Generation ----------
+  const qrStage = document.getElementById('qr-stage');
+  const qrPlaceholder = document.getElementById('qr-placeholder');
+  const qrContainer = document.getElementById('qrcode');
+  const downloadRow = document.getElementById('download-row');
+  let qrInstance = null;
+  let lastCanvas = null;
+
+  const colorMap = {
+    dark:   { fg: '#000000', bg: '#ffffff' },
+    cyan:   { fg: '#00323a', bg: '#e8feff' },
+    violet: { fg: '#2a0a3f', bg: '#f3e6ff' }
+  };
+
+  document.getElementById('generate-btn').addEventListener('click', () => {
+    const text = document.getElementById('text-input').value.trim();
+    if (!text) {
+      document.getElementById('text-input').focus();
+      document.getElementById('text-input').style.borderColor = 'var(--pink)';
+      setTimeout(() => document.getElementById('text-input').style.borderColor = '', 800);
+      return;
+    }
+    const size = parseInt(document.getElementById('size-select').value, 10);
+    const style = colorMap[document.getElementById('color-select').value];
+
+    qrContainer.innerHTML = '';
+    qrPlaceholder.style.display = 'none';
+    qrStage.classList.add('filled');
+
+    qrInstance = new QRCode(qrContainer, {
+      text: text,
+      width: size,
+      height: size,
+      colorDark: style.fg,
+      colorLight: style.bg,
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    setTimeout(() => {
+      lastCanvas = qrContainer.querySelector('canvas');
+      downloadRow.style.display = 'flex';
+    }, 120);
+  });
+
+  document.getElementById('download-btn').addEventListener('click', () => {
+    if (!lastCanvas) {
+      lastCanvas = qrContainer.querySelector('canvas');
+    }
+    if (!lastCanvas) return;
+    const link = document.createElement('a');
+    link.download = 'qr-nexus-code.png';
+    link.href = lastCanvas.toDataURL('image/png');
+    link.click();
+  });
+
+  // ---------- Scanning: Camera ----------
+  const video = document.getElementById('video');
+  const scanStatus = document.getElementById('scan-status');
+  const cameraToggle = document.getElementById('camera-toggle');
+  const scanResult = document.getElementById('scan-result');
+  const scanResultText = document.getElementById('scan-result-text');
+  const hiddenCanvas = document.getElementById('hidden-canvas');
+  const hiddenCtx = hiddenCanvas.getContext('2d');
+
+  let stream = null;
+  let scanning = false;
+  let rafId = null;
+
+  cameraToggle.addEventListener('click', () => {
+    if (scanning) {
+      stopCamera();
+    } else {
+      startCamera();
+    }
+  });
+
+  async function startCamera() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = stream;
+      await video.play();
+      scanning = true;
+      cameraToggle.textContent = '■ Stop Camera';
+      scanStatus.textContent = 'Scanning for QR code...';
+      scanResult.classList.remove('show');
+      tick();
+    } catch (err) {
+      scanStatus.textContent = 'Camera access denied or unavailable.';
+    }
+  }
+
+  function stopCamera() {
+    scanning = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    cameraToggle.textContent = '▶ Start Camera';
+    scanStatus.textContent = 'Camera idle — tap start to activate';
+  }
+
+  function tick() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      hiddenCanvas.width = video.videoWidth;
+      hiddenCanvas.height = video.videoHeight;
+      hiddenCtx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      const imageData = hiddenCtx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+      if (code && code.data) {
+        showResult(code.data);
+        stopCamera();
+        return;
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function showResult(data) {
+    scanResultText.textContent = data;
+    scanResult.classList.add('show');
+    scanStatus.textContent = 'QR code decoded successfully.';
+  }
+
+  // ---------- Scanning: Upload image ----------
+  const uploadTrigger = document.getElementById('upload-trigger');
+  const fileInput = document.getElementById('file-input');
+
+  uploadTrigger.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      hiddenCanvas.width = img.width;
+      hiddenCanvas.height = img.height;
+      hiddenCtx.drawImage(img, 0, 0);
+      const imageData = hiddenCtx.getImageData(0, 0, img.width, img.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code && code.data) {
+        showResult(code.data);
+      } else {
+        scanStatus.textContent = 'No QR code found in that image.';
+      }
+    };
+    img.src = URL.createObjectURL(file);
+  });
+</script>
 </body>
 </html>
